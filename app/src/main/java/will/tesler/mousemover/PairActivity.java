@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
@@ -43,7 +42,7 @@ public class PairActivity extends Activity {
             SharedPreferences.Editor editor = mPreferences.edit();
             editor.putString(PreferenceConstants.PAIRING_CODE, text);
             editor.apply();
-            startActivity(new Intent(this, MainActivity.class));
+            startActivity(new Intent(this, MouseActivity.class));
         }
     }
 

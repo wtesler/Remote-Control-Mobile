@@ -1,7 +1,10 @@
 package will.tesler.mousemover;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.ComponentName;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
@@ -12,7 +15,6 @@ import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
@@ -24,7 +26,7 @@ import butterknife.ButterKnife;
 import butterknife.OnClick;
 import butterknife.OnTouch;
 
-public class MainActivity extends Activity implements SensorEventListener {
+public class MouseActivity extends Activity implements SensorEventListener, MouseService.Listener {
 
     private MouseService.MouseBinder mMouseBinder;
     private ServiceConnection mServiceConnection =  new MouseServiceConnection();
@@ -37,6 +39,9 @@ public class MainActivity extends Activity implements SensorEventListener {
     private boolean mLeftButtonPressed;
     private boolean mRightButtonPressed;
 
+    SharedPreferences mPreferences;
+    private Intent mServiceIntent;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -44,6 +49,14 @@ public class MainActivity extends Activity implements SensorEventListener {
         ButterKnife.bind(this);
 
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        String savedPairingCode = preferences.getString(PreferenceConstants.PAIRING_CODE, "");
+
+        mServiceIntent = new Intent(this, MouseService.class)
+            .putExtra(MouseService.EXTRA_SERVER_IP, savedPairingCode)
+            .putExtra(MouseService.EXTRA_PORT, 63288);
+        bindService(mServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
     }
 
     @Override
@@ -55,9 +68,9 @@ public class MainActivity extends Activity implements SensorEventListener {
     protected void onResume() {
         super.onResume();
 
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        mPreferences = PreferenceManager.getDefaultSharedPreferences(this);
 
-        String savedPairingCode = preferences.getString(PreferenceConstants.PAIRING_CODE, "");
+        String savedPairingCode = mPreferences.getString(PreferenceConstants.PAIRING_CODE, "");
 
         Intent intent = new Intent(this, MouseService.class);
         intent.putExtra(MouseService.EXTRA_SERVER_IP, savedPairingCode);
@@ -76,7 +89,10 @@ public class MainActivity extends Activity implements SensorEventListener {
         super.onPause();
 
         mSensorManager.unregisterListener(this);
-        unbindService(mServiceConnection);
+
+        if (mMouseBinder != null) {
+            unbindService(mServiceConnection);
+        }
     }
 
     @Override
@@ -98,7 +114,6 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     @OnTouch(R.id.button_left_click)
     boolean onLeftButtonTouch(View v, MotionEvent event) {
-        Log.d("MainActivity", Integer.toString(event.getAction()));
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
                 if (!mLeftButtonPressed) {
@@ -132,8 +147,38 @@ public class MainActivity extends Activity implements SensorEventListener {
     }
 
     @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+    public void onAccuracyChanged(Sensor sensor, int accuracy) { }
 
+    @Override
+    public void onConnectionError() {
+        unbindService(mServiceConnection);
+        mMouseBinder = null;
+        showConnectionErrorDialog();
+    }
+
+    private void showConnectionErrorDialog() {
+        String savedPairingCode = mPreferences.getString(PreferenceConstants.PAIRING_CODE, "");
+
+        Dialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Cannot connect to device")
+                .setMessage("Ensure MouseMover is enabled on the other device and the pairing code is " +
+                        savedPairingCode)
+                .setPositiveButton("Retry", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        bindService(mServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
+                        dialog.dismiss();
+                    }
+                })
+                .setNegativeButton("Main Menu", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        finish();
+                    }
+                })
+                .setCancelable(false)
+                .create();
+        dialog.show();
     }
 
     private class MouseServiceConnection implements ServiceConnection {
@@ -141,12 +186,13 @@ public class MainActivity extends Activity implements SensorEventListener {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             mMouseBinder = (MouseService.MouseBinder) service;
+            mMouseBinder.setListener(MouseActivity.this);
+            mMouseBinder.contactServer();
         }
 
         @Override
         public void onServiceDisconnected(ComponentName name) {
             mMouseBinder = null;
-
         }
     }
 }
