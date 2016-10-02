@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">MouseMover</string>
+    <string name="calibrate">Calibrate</string>
+    <string name="click">Click</string>
+    <string name="pairing_code">Pairing code</string>
+    <string name="insert_pairing_code">Pairing Code:</string>
+    <string name="continue_">Continue</string>
+</resources>
