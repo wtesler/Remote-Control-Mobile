@@ -195,6 +195,7 @@ public class MouseActivity extends Activity implements SensorEventListener, Mous
     public boolean onKeyUp(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             onBackPressed();
+        }
 
         if (mMouseBinder != null) {
             int pressedKey = event.getUnicodeChar();
