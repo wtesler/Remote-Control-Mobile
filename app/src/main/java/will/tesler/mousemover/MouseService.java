@@ -20,11 +20,12 @@ public class MouseService extends Service {
     public static final String EXTRA_SERVER_IP = "will.tesler.mousemover.SERVER_IP";
     public static final String EXTRA_PORT = "will.tesler.mousemover.PORT";
 
-    private static final int CODE_CALIBRATE = Integer.MAX_VALUE;
-    private static final int CODE_LEFT_CLICK_DOWN = Integer.MIN_VALUE;
-    private static final int CODE_LEFT_CLICK_UP = Integer.MIN_VALUE + 1;
-    private static final int CODE_RIGHT_CLICK_DOWN = Integer.MIN_VALUE + 2;
-    private static final int CODE_RIGHT_CLICK_UP = Integer.MIN_VALUE + 3;
+    public static final int CODE_CALIBRATE = Integer.MIN_VALUE;
+    public static final int CODE_LEFT_CLICK_DOWN = Integer.MIN_VALUE + 1;
+    public static final int CODE_LEFT_CLICK_UP = Integer.MIN_VALUE + 2;
+    public static final int CODE_RIGHT_CLICK_DOWN = Integer.MIN_VALUE + 3;
+    public static final int CODE_RIGHT_CLICK_UP = Integer.MIN_VALUE + 4;
+    public static final int CODE_KEYBOARD = Integer.MIN_VALUE + 5;
 
     private AsyncTask<String, Void, Exception> mConnectionTask;
     private DataOutputStream mDataOutputStream;
@@ -118,6 +119,10 @@ public class MouseService extends Service {
 
         public void sendRightClickUp() {
             sendValues(CODE_RIGHT_CLICK_UP);
+        }
+
+        public void sendUnicodeChar(int keyCode) {
+            sendValues(CODE_KEYBOARD, keyCode);
         }
 
         public void sendMouseEvent(final int x, final int y) {

@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
@@ -15,9 +16,13 @@ import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
+import android.support.design.widget.FloatingActionButton;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
+import android.widget.ImageButton;
 
 import java.util.List;
 
@@ -32,9 +37,10 @@ public class MouseActivity extends Activity implements SensorEventListener, Mous
     private ServiceConnection mServiceConnection =  new MouseServiceConnection();
     private SensorManager mSensorManager;
 
-    @BindView(R.id.button_calibrate) Button mButtonCalibrate;
+    @BindView(R.id.button_calibrate) FloatingActionButton mButtonCalibrate;
     @BindView(R.id.button_left_click) Button mButtonLeftClick;
     @BindView(R.id.button_right_click) Button mButtonRightClick;
+    @BindView(R.id.imagebutton_keyboard) ImageButton mImageButtonKeyboard;
 
     private boolean mLeftButtonPressed;
     private boolean mRightButtonPressed;
@@ -112,6 +118,12 @@ public class MouseActivity extends Activity implements SensorEventListener, Mous
         }
     }
 
+    @OnClick(R.id.imagebutton_keyboard)
+    void onKeyboardButtonClick(View v) {
+        InputMethodManager inputMethodManager = (InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+        inputMethodManager.toggleSoftInputFromWindow(v.getApplicationWindowToken(), InputMethodManager.SHOW_FORCED, 0);
+    }
+
     @OnTouch(R.id.button_left_click)
     boolean onLeftButtonTouch(View v, MotionEvent event) {
         switch (event.getAction()) {
@@ -132,7 +144,30 @@ public class MouseActivity extends Activity implements SensorEventListener, Mous
                 }
                 break;
         }
-        return true;
+        return false;
+    }
+
+    @OnTouch(R.id.button_right_click)
+    boolean onRightButtonTouch(View v, MotionEvent event) {
+        switch (event.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+                if (!mRightButtonPressed) {
+                    mRightButtonPressed = true;
+                    if (mMouseBinder != null) {
+                        mMouseBinder.sendRightClickDown();
+                    }
+                }
+                break;
+            case MotionEvent.ACTION_UP:
+                if (mRightButtonPressed) {
+                    mRightButtonPressed = false;
+                    if (mMouseBinder != null) {
+                        mMouseBinder.sendRightClickUp();
+                    }
+                }
+                break;
+        }
+        return false;
     }
 
     @Override
@@ -155,6 +190,20 @@ public class MouseActivity extends Activity implements SensorEventListener, Mous
         mMouseBinder = null;
         showConnectionErrorDialog();
     }
+
+    @Override
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            onBackPressed();
+
+        if (mMouseBinder != null) {
+            int pressedKey = event.getUnicodeChar();
+            System.out.println("Sending unicode character: " + pressedKey);
+            mMouseBinder.sendUnicodeChar(pressedKey);
+        }
+        return true;
+    }
+
 
     private void showConnectionErrorDialog() {
         String savedPairingCode = mPreferences.getString(PreferenceConstants.PAIRING_CODE, "");
