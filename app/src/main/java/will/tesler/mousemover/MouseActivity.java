@@ -186,8 +186,10 @@ public class MouseActivity extends Activity implements SensorEventListener, Mous
 
     @Override
     public void onConnectionError() {
-        unbindService(mServiceConnection);
-        mMouseBinder = null;
+        if (mMouseBinder != null) {
+            unbindService(mServiceConnection);
+            mMouseBinder = null;
+        }
         showConnectionErrorDialog();
     }
 
