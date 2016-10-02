@@ -48,6 +48,9 @@ public class MouseActivity extends Activity implements SensorEventListener, Mous
     SharedPreferences mPreferences;
     private Intent mServiceIntent;
 
+    private float mLastX = Integer.MIN_VALUE;
+    private float mLastY = Integer.MIN_VALUE;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -173,11 +176,15 @@ public class MouseActivity extends Activity implements SensorEventListener, Mous
     @Override
     public void onSensorChanged(SensorEvent event) {
         //values are angular speed in order x, y, z
-        int x = (int) (event.values[2] * 20);
-        int y = (int) (event.values[0] * 20);
+        float x = event.values[2] * 20;
+        float y = event.values[0] * 20;
+        if (mLastX != Integer.MIN_VALUE) {
+            x = lerp(mLastX, x, .5f);
+            y = lerp(mLastY, y, .5f);
+        }
 
         if (mMouseBinder != null) {
-            mMouseBinder.sendMouseEvent(x, y);
+            mMouseBinder.sendMouseEvent((int) x,(int) y);
         }
     }
 
@@ -231,6 +238,10 @@ public class MouseActivity extends Activity implements SensorEventListener, Mous
                 .setCancelable(false)
                 .create();
         dialog.show();
+    }
+
+    private float lerp(float a, float b, float factor) {
+        return (a * (1.0f - factor)) + (b * factor);
     }
 
     private class MouseServiceConnection implements ServiceConnection {
