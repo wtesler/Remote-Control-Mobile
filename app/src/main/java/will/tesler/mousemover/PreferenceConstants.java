@@ -8,5 +8,5 @@ public class PreferenceConstants {
 
     private PreferenceConstants() {}
 
-    public static String PAIRING_CODE = "will.tesler.mousemover.PAIRING_CODE";
+    public static String PAIRING_CODE= "will.tesler.mousemover.PAIRING_CODE";
 }

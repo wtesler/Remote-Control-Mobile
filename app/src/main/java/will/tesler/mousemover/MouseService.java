@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Binder;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.IBinder;
 import android.util.Log;
 
@@ -20,16 +21,11 @@ public class MouseService extends Service {
     public static final String EXTRA_SERVER_IP = "will.tesler.mousemover.SERVER_IP";
     public static final String EXTRA_PORT = "will.tesler.mousemover.PORT";
 
-    public static final int CODE_CALIBRATE = Integer.MIN_VALUE;
-    public static final int CODE_LEFT_CLICK_DOWN = Integer.MIN_VALUE + 1;
-    public static final int CODE_LEFT_CLICK_UP = Integer.MIN_VALUE + 2;
-    public static final int CODE_RIGHT_CLICK_DOWN = Integer.MIN_VALUE + 3;
-    public static final int CODE_RIGHT_CLICK_UP = Integer.MIN_VALUE + 4;
-    public static final int CODE_KEYBOARD = Integer.MIN_VALUE + 5;
-
     private AsyncTask<String, Void, Exception> mConnectionTask;
     private DataOutputStream mDataOutputStream;
     private Handler mMainThreadHandler;
+    HandlerThread mMessageThread;
+    Handler mMessageThreadHandler;
     private MouseBinder mMouseBinder;
     private Socket mSocket;
 
@@ -40,6 +36,9 @@ public class MouseService extends Service {
         super.onCreate();
         Log.d("MouseService", "Service Created.");
         mMainThreadHandler = new Handler();
+        mMessageThread = new HandlerThread("MessageThread");
+        mMessageThread.start();
+        mMessageThreadHandler = new Handler(mMessageThread.getLooper());
         mMouseBinder = new MouseBinder();
     }
 
@@ -56,6 +55,9 @@ public class MouseService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        if (mMessageThread != null && mMessageThread.isAlive()) {
+            mMessageThread.quit();
+        }
         if (mSocket != null && !mSocket.isClosed()) {
             try {
                 mSocket.close();
@@ -84,12 +86,15 @@ public class MouseService extends Service {
             @Override
             protected void onPostExecute(Exception exception) {
                 if (exception == null) {
-                    return;
+                    Debug.D("Connected to Server.");
                 } else if (exception instanceof ConnectException) {
+                    Debug.D("ConnectException");
                     mMouseBinder.getListener().onConnectionError();
                 } else if (exception instanceof UnknownHostException) {
+                    Debug.D("UnknownHostException");
                     exception.printStackTrace();
                 } else if (exception instanceof IOException) {
+                    Debug.D("IOException");
                     exception.printStackTrace();
                 }
             }
@@ -99,33 +104,40 @@ public class MouseService extends Service {
     public class MouseBinder extends Binder {
 
         private Listener mListener;
-        private boolean mIsConnectedToServer;
 
         public void sendCalibration() {
-            sendValues(CODE_CALIBRATE);
+            sendValues(ProtocolConstants.CODE_CALIBRATE);
         }
 
-        public void sendLeftClickDown() {
-            sendValues(CODE_LEFT_CLICK_DOWN);
+        public void sendLeftClick() {
+            sendValues(ProtocolConstants.CODE_LEFT_CLICK);
         }
 
-        public void sendLeftClickUp() {
-            sendValues(CODE_LEFT_CLICK_UP);
+        public void sendLeftDown() {
+            sendValues(ProtocolConstants.CODE_LEFT_DOWN);
         }
 
-        public void sendRightClickDown() {
-            sendValues(CODE_RIGHT_CLICK_DOWN);
+        public void sendLeftUp() {
+            sendValues(ProtocolConstants.CODE_LEFT_UP);
         }
 
-        public void sendRightClickUp() {
-            sendValues(CODE_RIGHT_CLICK_UP);
+        public void sendRightClick() {
+            sendValues(ProtocolConstants.CODE_RIGHT_CLICK);
+        }
+
+        public void sendRightDown() {
+            sendValues(ProtocolConstants.CODE_RIGHT_DOWN);
+        }
+
+        public void sendRightUp() {
+            sendValues(ProtocolConstants.CODE_RIGHT_UP);
         }
 
         public void sendUnicodeChar(int keyCode) {
-            sendValues(CODE_KEYBOARD, keyCode);
+            sendValues(ProtocolConstants.CODE_KEYBOARD, keyCode);
         }
 
-        public void sendMouseEvent(final int x, final int y) {
+        public void sendMousePosition(final int x, final int y) {
             sendValues(x, y);
         }
 
@@ -162,12 +174,10 @@ public class MouseService extends Service {
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
-                    } else {
-                        Log.w("MouseService", "No output stream available.");
                     }
                 }
             };
-            new Thread(runnable).start();
+            mMessageThreadHandler.post(runnable);
         }
     }
 
